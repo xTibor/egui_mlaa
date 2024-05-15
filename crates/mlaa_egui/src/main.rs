@@ -81,6 +81,12 @@ impl MlaaApplication {
                 self.image_pixels[y as usize][x as usize]
             },
             |c| Rgba::from(c).intensity(),
+            |c1, c2| {
+                c1.r().abs_diff(c2.r()) as usize
+                    + c1.g().abs_diff(c2.g()) as usize
+                    + c1.b().abs_diff(c2.b()) as usize
+                    + c1.a().abs_diff(c2.a()) as usize
+            },
             &self.mlaa_options,
             |mlaa_feature| self.mlaa_features.push(mlaa_feature),
         );
@@ -112,21 +118,35 @@ impl eframe::App for MlaaApplication {
                 ui.separator();
 
                 ui.vertical(|ui| {
-                    ui.label("Seam split position");
-
-                    let drag_value = DragValue::new(&mut self.mlaa_options.seam_split_position)
-                        .clamp_range(0.0..=1.0)
-                        .speed(0.01);
-                    if ui.add(drag_value).changed() {
-                        needs_feature_recalc = true;
-                    }
-
                     if (ui.checkbox(&mut self.mlaa_options.strict_mode, "Strict mode")
                         | ui.checkbox(&mut self.mlaa_options.seam_brigtness_balance, "Seam brightness balance"))
                     .changed()
                     {
                         needs_feature_recalc = true;
                     };
+
+                    ui.horizontal(|ui| {
+                        let drag_value = DragValue::new(&mut self.mlaa_options.seam_split_position)
+                            .clamp_range(0.0..=1.0)
+                            .speed(0.01);
+
+                        if ui.add(drag_value).changed() {
+                            needs_feature_recalc = true;
+                        }
+
+                        ui.label("Seam split position");
+                    });
+
+                    ui.horizontal(|ui| {
+                        let drag_value =
+                            DragValue::new(&mut self.mlaa_options.smoothing_tolerance).clamp_range(0..=768);
+
+                        if ui.add(drag_value).changed() {
+                            needs_feature_recalc = true;
+                        }
+
+                        ui.label("Smoothing tolerance");
+                    });
                 });
                 ui.separator();
 

@@ -7,6 +7,8 @@ pub struct MlaaOptions {
     pub strict_mode: bool,
     pub seam_split_position: f32,
     pub seam_brigtness_balance: bool,
+
+    pub smoothing_tolerance: usize,
 }
 
 impl Default for MlaaOptions {
@@ -19,6 +21,8 @@ impl Default for MlaaOptions {
             strict_mode: true,
             seam_split_position: 0.0,
             seam_brigtness_balance: false,
+
+            smoothing_tolerance: 0,
         }
     }
 }
@@ -48,6 +52,7 @@ pub fn mlaa_features<B, C>(
     image_height: usize,
     image_colors: impl Fn(isize, isize) -> C,
     color_brightness: impl Fn(C) -> B,
+    color_distance: impl Fn(C, C) -> usize + Copy,
     mlaa_options: &MlaaOptions,
     mut emit_mlaa_feature: impl FnMut(MlaaFeature<C>),
 ) where
@@ -78,6 +83,11 @@ pub fn mlaa_features<B, C>(
         run_length
     };
 
+    let seams_within_tolerance = |(a1, a2), (b1, b2)| -> bool {
+        color_distance(a1, b1) <= mlaa_options.smoothing_tolerance
+            && color_distance(a2, b2) <= mlaa_options.smoothing_tolerance
+    };
+
     if mlaa_options.vertical_smoothing {
         for x in -1..image_width as isize {
             let mut y = 0;
@@ -85,7 +95,7 @@ pub fn mlaa_features<B, C>(
 
             while y < image_height as isize {
                 let seam_colors = (image_colors(x, y), image_colors(x + 1, y));
-                let seam_length = vertical_run(x, y, Box::new(move |c| c == seam_colors));
+                let seam_length = vertical_run(x, y, Box::new(move |c| seams_within_tolerance(c, seam_colors)));
 
                 'neighbor_loop: for neighbor_delta in [-1, 1] {
                     #[allow(clippy::identity_op)]
@@ -104,7 +114,7 @@ pub fn mlaa_features<B, C>(
                     }
 
                     let neighbor_length = if mlaa_options.strict_mode {
-                        vertical_run(x + neighbor_delta, y + seam_length, Box::new(move |c| c == seam_colors))
+                        vertical_run(x + neighbor_delta, y + seam_length, Box::new(move |c| seams_within_tolerance(c, seam_colors)))
                     } else {
                         let neighbor_length_1 = vertical_run(
                             x + neighbor_delta,
@@ -161,7 +171,7 @@ pub fn mlaa_features<B, C>(
 
             while x < image_width as isize {
                 let seam_colors = (image_colors(x, y), image_colors(x, y + 1));
-                let seam_length = horizontal_run(x, y, Box::new(move |c| c == seam_colors));
+                let seam_length = horizontal_run(x, y, Box::new(move |c| seams_within_tolerance(c, seam_colors)));
 
                 'neighbor_loop: for neighbor_delta in [-1, 1] {
                     #[allow(clippy::identity_op)]
@@ -180,7 +190,7 @@ pub fn mlaa_features<B, C>(
                     }
 
                     let neighbor_length = if mlaa_options.strict_mode {
-                        horizontal_run(x + seam_length, y + neighbor_delta, Box::new(move |c| c == seam_colors))
+                        horizontal_run(x + seam_length, y + neighbor_delta, Box::new(move |c| seams_within_tolerance(c, seam_colors)))
                     } else {
                         let neighbor_length_1 = horizontal_run(
                             x + seam_length,

@@ -96,6 +96,12 @@ fn main_inner() -> Result<ExitCode, Box<dyn Error>> {
                 .to_owned()
         },
         |c| c.to_luma().0,
+        |c1, c2| {
+            c1.0[0].abs_diff(c2.0[0]) as usize
+                + c1.0[1].abs_diff(c2.0[1]) as usize
+                + c1.0[2].abs_diff(c2.0[2]) as usize
+                + c1.0[3].abs_diff(c2.0[3]) as usize
+        },
         &mlaa_options,
         |mlaa_feature| {
             mlaa_painter(
@@ -127,6 +133,10 @@ fn main_inner() -> Result<ExitCode, Box<dyn Error>> {
                     ])
                 },
                 |x, y, c| {
+                    if x < 0 || y < 0 {
+                        return;
+                    }
+
                     output_image.put_pixel(x as u32, y as u32, c);
                 },
                 &mlaa_feature,

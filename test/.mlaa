@@ -5,3 +5,5 @@ corner_smoothing = true
 strict_mode = true
 seam_split_position = 0.0
 seam_brigtness_balance = false
+
+smoothing_tolerance = 16
